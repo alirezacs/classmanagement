@@ -1,0 +1,3 @@
+import type { LucideIcon } from "lucide-react";
+export function StatCard({ label, value, detail, icon: Icon, accent = "var(--accent)" }: { label: string; value: string; detail: string; icon: LucideIcon; accent?: string }) { return <article className="rounded-2xl border bg-[var(--surface)] p-5 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-sm text-[var(--muted)]">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p></div><span className="grid size-10 place-items-center rounded-xl" style={{color:accent,background:`color-mix(in srgb, ${accent} 14%, transparent)`}}><Icon className="size-5" /></span></div><p className="mt-4 text-xs text-[var(--muted)]">{detail}</p></article>; }
+

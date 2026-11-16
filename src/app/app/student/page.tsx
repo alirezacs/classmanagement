@@ -1,0 +1,19 @@
+import { ArrowRight, BookOpen, CalendarDays } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireAuthenticatedUser } from "@/server/authorization";
+import { studentDashboard } from "@/server/services/dashboard";
+import { WorkspaceShell } from "@/components/workspace-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { Notice } from "@/components/ui/notice";
+import { ClassCard } from "@/components/ui/class-card";
+
+export const dynamic = "force-dynamic";
+const dateTime = (date: Date, timeZone: string) => { const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date); const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value])); return `${values.year}/${values.month}/${values.day}`; };
+
+export default async function StudentDashboard() {
+  let user; try { user = await requireAuthenticatedUser(); } catch { redirect("/sign-in"); }
+  let data; try { data = await studentDashboard(user.id); } catch { return <WorkspaceShell role="Student" userName={user.name} userEmail={user.email}><Notice tone="warning" title="Dashboard unavailable">We could not load your learning data. <Link href="/app/student" className="font-semibold underline">Try again</Link>.</Notice></WorkspaceShell>; }
+  return <WorkspaceShell role="Student" userName={user.name} userEmail={user.email}><PageHeader eyebrow="Learning overview" title={`Welcome back, ${user.name.split(" ")[0]}`} description="A live view of your enrolled classes, sessions, and attendance." actions={<Link href="/app/student?filter=upcoming" className="inline-flex h-10 items-center rounded-xl border bg-[var(--surface)] px-4 text-sm font-semibold">Focus upcoming <ArrowRight className="ms-2 size-4" /></Link>} /><div className="grid gap-4 sm:grid-cols-2"><StatCard label="Enrolled classes" value={String(data.enrolledClassCount)} detail="Active memberships" icon={BookOpen} /><StatCard label="Upcoming sessions" value={String(data.upcomingSessions.length)} detail="Scheduled sessions from now" icon={CalendarDays} accent="var(--success)" /></div><section className="mt-10 rounded-2xl border bg-[var(--surface)] p-5"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--accent)]">Schedule</p><h2 className="mt-1 text-xl font-semibold">Upcoming sessions</h2></div><Link href="/app/student" className="text-sm font-semibold text-[var(--accent)]">View all</Link></div><div className="mt-5 space-y-3">{data.upcomingSessions.length ? data.upcomingSessions.map((session) => <Link key={session.id} href={`/app/student/classes/${session.class.id}/sessions`} className="block rounded-xl border p-4 hover:border-[var(--accent)]"><p className="font-semibold">{session.title}</p><p className="mt-1 text-xs text-[var(--muted)]">{session.class.title} · {dateTime(session.startsAt, session.class.timeZone)}</p></Link>) : <p className="rounded-xl border border-dashed p-6 text-sm text-[var(--muted)]">No upcoming sessions.</p>}</div></section><section className="mt-10"><div className="mb-4"><p className="text-xs font-semibold uppercase tracking-[.16em] text-[var(--accent)]">Classes</p><h2 className="mt-1 text-xl font-semibold">Your enrolled classes</h2></div><div className="grid gap-4 lg:grid-cols-2">{data.enrollments.length ? data.enrollments.map((item) => <ClassCard key={item.id} id={item.class.id} href={`/app/student/classes/${item.class.id}`} title={item.class.title} subject={`with ${item.class.owner.name}`} students={item.class._count.enrollments} next="Open learning space" />) : <p className="rounded-2xl border border-dashed p-8 text-sm text-[var(--muted)]">No active enrollments.</p>}</div></section></WorkspaceShell>;
+}

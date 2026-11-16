@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ClassStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+enum EnrollmentStatus {
+  INVITED
+  ACTIVE
+  WITHDRAWN
+  REMOVED
+}
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+enum ClassSessionStatus {
+  DRAFT
+  CANCELLED
+  COMPLETED
+}
+
+enum AttendanceMoment {
+  SESSION
+  BEFORE_ENTRACTE
+  AFTER_ENTRACTE
+  SEGMENT
+}
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  emailVerified Boolean @default(false)
+  image String?
+  locale String @default("en")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  authSessions AuthSession[]
+  accounts Account[]
+  ownedClasses Class[] @relation("ClassOwner")
+  enrollments Enrollment[]
+  invitationsSent Invitation[] @relation("InvitationSender")
+}
+
+model AuthSession {
+  id String @id @default(cuid())
+  expiresAt DateTime @db.Timestamptz(3)
+  token String @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  ipAddress String?
+  userAgent String?
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id String @id @default(cuid())
+  accountId String
+  providerId String
+  userId String
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime? @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(3)
+  scope String?
+  password String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id String @id @default(cuid())
+  identifier String
+  value String
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@index([identifier])
+  @@map("verification")
+}
+
+model RateLimit {
+  id String @id @default(cuid())
+  key String @unique
+  count Int
+  lastRequest BigInt
+  @@map("rateLimit")
+}
+
+model AbuseThrottle {
+  key String @id
+  count Int @default(0)
+  windowStarts DateTime @db.Timestamptz(3)
+  blockedUntil DateTime?
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@index([blockedUntil])
+}
+
+model Class {
+  id String @id @default(cuid())
+  ownerId String
+  title String
+  description String?
+  status ClassStatus @default(DRAFT)
+  timeZone String
+  startsOn DateTime? @db.Date
+  endsOn DateTime? @db.Date
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  owner User @relation("ClassOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
+  invitations Invitation[]
+  classSessions ClassSession[]
+  @@index([ownerId, status])
+}
+
+model Enrollment {
+  id String @id @default(cuid())
+  classId String
+  studentId String
+  status EnrollmentStatus @default(ACTIVE)
+  enrolledAt DateTime @default(now()) @db.Timestamptz(3)
+  withdrawnAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  attendance Attendance[]
+  @@unique([classId, studentId])
+  @@unique([id, classId])
+  @@index([studentId, status])
+}
+
+model Invitation {
+  id String @id @default(cuid())
+  classId String
+  intendedRecipientEmail String
+  tokenHash String @unique
+  status InvitationStatus @default(PENDING)
+  expiresAt DateTime @db.Timestamptz(3)
+  acceptedAt DateTime?
+  revokedAt DateTime?
+  invitedById String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  invitedBy User @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  @@index([classId, intendedRecipientEmail, status])
+  @@index([expiresAt, status])
+}
+
+model ClassSession {
+  id String @id @default(cuid())
+  classId String
+  title String
+  sequence Int
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt DateTime @db.Timestamptz(3)
+  notes String?
+  status ClassSessionStatus @default(DRAFT)
+  cancellationReason String?
+  entracteCount Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+  @@unique([classId, sequence])
+  @@unique([classId, startsAt])
+  @@unique([id, classId])
+}
+
+model Attendance {
+  id String @id @default(cuid())
+  classId String
+  classSessionId String
+  enrollmentId String
+  status AttendanceStatus
+  privateNote String?
+  moment AttendanceMoment @default(SESSION)
+  segmentNumber Int @map("entracteNumber") @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  classSession ClassSession @relation(fields: [classSessionId, classId], references: [id, classId], onDelete: Cascade)
+  enrollment Enrollment @relation(fields: [enrollmentId, classId], references: [id, classId], onDelete: Cascade)
+  @@unique([classSessionId, enrollmentId, moment, segmentNumber])
+  @@index([enrollmentId])
+}
