@@ -6,6 +6,7 @@ import { authSecretForBuildOrRuntime } from "@/server/env";
 import { sendTransactionalEmail } from "@/server/email";
 
 const isProduction = process.env.NODE_ENV === "production";
+const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION !== "false";
 
 export const auth = betterAuth({
   appName: "Classroom",
@@ -14,14 +15,14 @@ export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification,
     autoSignIn: false,
     revokeSessionsOnPasswordReset: true,
     resetPasswordTokenExpiresIn: 60 * 30,
     sendResetPassword: async ({ user, url }) => sendTransactionalEmail({ to: user.email, subject: "Reset your Classroom password", text: `Use this link within 30 minutes to reset your password: ${url}` }),
   },
   emailVerification: {
-    sendOnSignUp: true,
+    sendOnSignUp: requireEmailVerification,
     // Sign-in must fail fast with EMAIL_NOT_VERIFIED. The explicit resend
     // endpoint handles delivery and is independently rate limited.
     sendOnSignIn: false,
