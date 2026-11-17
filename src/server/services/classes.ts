@@ -6,7 +6,9 @@ import { db } from "@/server/db";
 import type { EnrollmentStatus } from "@/generated/prisma/enums";
 import { AccessDeniedError, requireActiveEnrollment, requireClassAccess, requireClassOwner } from "@/server/authorization";
 
-export const classInput = z.object({ title: z.string().trim().min(1).max(160), description: z.string().trim().max(5000).nullable().optional(), timeZone: z.string().trim().min(1).max(80), startsOn: z.coerce.date().nullable().optional(), endsOn: z.coerce.date().nullable().optional() }).superRefine((value, ctx) => { if (value.startsOn && value.endsOn && value.endsOn < value.startsOn) ctx.addIssue({ code: "custom", path: ["endsOn"], message: "End date must be after start date" }); });
+const classFields = z.object({ title: z.string().trim().min(1).max(160), description: z.string().trim().max(5000).nullable().optional(), timeZone: z.string().trim().min(1).max(80), startsOn: z.coerce.date().nullable().optional(), endsOn: z.coerce.date().nullable().optional() });
+export const classInput = classFields.superRefine((value, ctx) => { if (value.startsOn && value.endsOn && value.endsOn < value.startsOn) ctx.addIssue({ code: "custom", path: ["endsOn"], message: "End date must be after start date" }); });
+export const updateClassInput = classFields.partial().extend({ status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]).optional() }).superRefine((value, ctx) => { if (value.startsOn && value.endsOn && value.endsOn < value.startsOn) ctx.addIssue({ code: "custom", path: ["endsOn"], message: "End date must be after start date" }); });
 export const pageInput = z.object({ page: z.coerce.number().int().min(1).default(1), pageSize: z.coerce.number().int().min(1).max(100).default(20), search: z.string().trim().max(100).default("") });
 const manualStudentInput = z.object({ name: z.string().trim().min(1).max(160), email: z.string().trim().email().max(320), temporaryPassword: z.string().min(8).max(128).optional() });
 
@@ -30,7 +32,7 @@ export async function createClass(userId: string, input: unknown) { const value 
 
 export async function updateOwnedClass(userId: string, classId: string, input: unknown) {
   const existing = await requireClassOwner(userId, classId); archivedWriteDenied(existing.status);
-  const value = classInput.partial().extend({ status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]).optional() }).parse(input);
+  const value = updateClassInput.parse(input);
   const data = Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
   return db.class.update({ where: { id: classId }, data });
 }
