@@ -15,3 +15,7 @@ Vercel-compatible deployments.
 The database schema intentionally contains no coursework, file, or external storage
 models. Historical migrations retain removed tables for auditability; the forward
 scope-removal migration deletes that metadata when explicitly applied.
+
+Application areas are separated at `/admin`, `/teacher`, and `/student`. Teacher and Student share the workspace component system; Admin uses a distinct warm accent and independently permission-gated data. Legacy `/app` is the authenticated landing resolver.
+
+Existing operational features exposed to authorized administrators are archived class state, enrollment and invitation management, session generation, segmented attendance/private notes, and account activation state. Sensitive administrative changes write `AuditLog` records with actor, action, target, time, and minimal metadata. Passwords, hashes, tokens, reset URLs, and private note contents are excluded.

@@ -27,7 +27,10 @@ export function AuthForm({ mode }: { mode: "sign-in" | "register" }) {
       const acceptance = await fetch("/api/invitations/accept", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: invite }) });
       if (!acceptance.ok) setError("This invitation cannot be accepted with this account.");
       else router.push("/app");
-    } else router.push("/app");
+    } else {
+      const intended = searchParams.get("next");
+      router.push(intended?.startsWith("/") && !intended.startsWith("//") ? intended : "/app");
+    }
   }
   async function resendVerification() { setPending(true); setError(undefined); setVerificationSent(false); const response = await fetch("/api/auth/send-verification-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail, callbackURL: "/app" }) }); setPending(false); if (response.ok) setVerificationSent(true); else setError(response.status === 429 ? "Too many requests. Please wait before trying again." : "We could not send a verification email."); }
   return <form onSubmit={submit} className="mt-8 space-y-5">

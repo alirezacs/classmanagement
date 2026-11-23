@@ -52,11 +52,80 @@ model User {
   locale String @default("en")
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  disabledAt DateTime? @db.Timestamptz(3)
+  disabledReason String?
   authSessions AuthSession[]
   accounts Account[]
   ownedClasses Class[] @relation("ClassOwner")
   enrollments Enrollment[]
   invitationsSent Invitation[] @relation("InvitationSender")
+  roles UserRole[] @relation("UserRoleUser")
+  rolesAssigned UserRole[] @relation("UserRoleAssigner")
+  permissionsGranted RolePermission[] @relation("RolePermissionGranter")
+  auditEvents AuditLog[] @relation("AuditActor")
+}
+
+model Role {
+  id String @id @default(cuid())
+  key String @unique
+  name String
+  description String?
+  isSystem Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  users UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  key String @id
+  resource String
+  action String
+  description String
+  sensitive Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  roles RolePermission[]
+  @@index([resource])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  assignedById String?
+  assignedAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation("UserRoleUser", fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedBy User? @relation("UserRoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId String
+  permissionKey String
+  grantedById String?
+  grantedAt DateTime @default(now()) @db.Timestamptz(3)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  grantedBy User? @relation("RolePermissionGranter", fields: [grantedById], references: [id], onDelete: SetNull)
+  @@id([roleId, permissionKey])
+  @@index([permissionKey])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String?
+  action String
+  targetType String
+  targetId String
+  details Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
 }
 
 model AuthSession {

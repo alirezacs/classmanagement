@@ -17,8 +17,11 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:deploy": "npm run db:migrate && npm run db:sync-permissions",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:sync-permissions": "tsx scripts/sync-permissions.ts",
+    "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "postinstall": "prisma generate"
   },
   "devDependencies": {

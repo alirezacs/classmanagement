@@ -1,0 +1,11 @@
+import { headers } from "next/headers";
+import { auth } from "@/server/auth";
+import { writeAudit } from "@/server/audit";
+import { db } from "@/server/db";
+import { requirePermission } from "@/server/authorization";
+import { deleteUser, setUserDisabled, setUserPassword, setUserRole, updateUserEmail, updateUserProfile } from "@/server/services/admin";
+import { protectedRouteError } from "@/server/http";
+import { enforcePersistentThrottle } from "@/server/throttle";
+export const runtime = "nodejs"; export const dynamic = "force-dynamic";
+export async function PATCH(request: Request, context: { params: Promise<{ userId: string }> }) { try { const { userId } = await context.params; const body = await request.json() as { action?: string; email?: unknown; password?: unknown; disabled?: boolean; reason?: string; roleId?: string; assigned?: boolean }; let result: unknown; switch (body.action) { case "email": result = await updateUserEmail(userId, body.email); break; case "password": result = await setUserPassword(userId, body.password); break; case "status": result = await setUserDisabled(userId, body.disabled === true, body.reason); break; case "role": if (!body.roleId) throw new Error("roleId is required"); result = await setUserRole(userId, body.roleId, body.assigned === true); break; case "reset": { await enforcePersistentThrottle(`admin-password-reset-${userId}`, request, 5); const actor = await requirePermission("users.password.reset.send"); const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } }); result = await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/reset-password" }, headers: await headers() }); await writeAudit({ actorId: actor.id, action: "user.password.reset.send", targetType: "User", targetId: userId, details: { deliveryAccepted: true } }); break; } default: result = await updateUserProfile(userId, body); } return Response.json(result, { headers: { "Cache-Control": "private, no-store" } }); } catch (error) { return protectedRouteError(error); } }
+export async function DELETE(_: Request, context: { params: Promise<{ userId: string }> }) { try { const { userId } = await context.params; return Response.json(await deleteUser(userId), { headers: { "Cache-Control": "private, no-store" } }); } catch (error) { return protectedRouteError(error); } }

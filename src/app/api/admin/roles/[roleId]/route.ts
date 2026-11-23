@@ -1,0 +1,5 @@
+import { deleteRole, setRolePermissions, updateRole } from "@/server/services/admin";
+import { protectedRouteError } from "@/server/http";
+export const runtime = "nodejs"; export const dynamic = "force-dynamic";
+export async function PATCH(request: Request, context: { params: Promise<{ roleId: string }> }) { try { const { roleId } = await context.params; const body = await request.json() as { action?: string; permissionKeys?: unknown }; const result = body.action === "permissions" ? await setRolePermissions(roleId, body.permissionKeys) : await updateRole(roleId, body); return Response.json(result, { headers: { "Cache-Control": "private, no-store" } }); } catch (error) { return protectedRouteError(error); } }
+export async function DELETE(_: Request, context: { params: Promise<{ roleId: string }> }) { try { const { roleId } = await context.params; return Response.json(await deleteRole(roleId), { headers: { "Cache-Control": "private, no-store" } }); } catch (error) { return protectedRouteError(error); } }

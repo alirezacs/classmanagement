@@ -33,6 +33,23 @@ export const auth = betterAuth({
       locale: { type: "string", required: false, defaultValue: "en", input: true },
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user, context) => {
+          const callbackURL = (context?.body as { callbackURL?: unknown } | undefined)?.callbackURL;
+          const roleKey = typeof callbackURL === "string" && callbackURL.startsWith("/invite/") ? "student" : "teacher";
+          const role = await db.role.findUnique({ where: { key: roleKey }, select: { id: true } });
+          if (role) await db.userRole.upsert({ where: { userId_roleId: { userId: user.id, roleId: role.id } }, update: {}, create: { userId: user.id, roleId: role.id } });
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => (await db.user.count({ where: { id: session.userId, disabledAt: null } })) === 1,
+      },
+    },
+  },
   session: { modelName: "AuthSession", expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: true, maxAge: 300, strategy: "jwe" } },
   rateLimit: {
     enabled: true,

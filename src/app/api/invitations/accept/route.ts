@@ -23,6 +23,8 @@ export async function POST(request: Request): Promise<Response> {
       const consumed = await tx.invitation.updateMany({ where: { id: invitation.id, status: "PENDING", acceptedAt: null, revokedAt: null }, data: { status: "ACCEPTED", acceptedAt: now } });
       if (consumed.count !== 1) return false;
       await tx.enrollment.upsert({ where: { classId_studentId: { classId: invitation.classId, studentId: user.id } }, update: { status: "ACTIVE", withdrawnAt: null, enrolledAt: now }, create: { classId: invitation.classId, studentId: user.id, status: "ACTIVE", enrolledAt: now } });
+      const studentRole = await tx.role.findUnique({ where: { key: "student" }, select: { id: true } });
+      if (studentRole) await tx.userRole.upsert({ where: { userId_roleId: { userId: user.id, roleId: studentRole.id } }, update: {}, create: { userId: user.id, roleId: studentRole.id } });
       return true;
     }, { isolationLevel: "Serializable" });
     return result ? Response.json({ accepted: true }, { headers: { "Cache-Control": "private, no-store" } }) : invalidInvitation();

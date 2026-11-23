@@ -1,0 +1,11 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { CalendarDays, UsersRound } from "lucide-react";
+import { WorkspaceShell } from "@/components/workspace-shell";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { ClassCard } from "@/components/ui/class-card";
+import { hasPermission, requireAuthorizationContext } from "@/server/authorization";
+import { teacherDashboard } from "@/server/services/dashboard";
+export const dynamic = "force-dynamic";
+export default async function TeacherPage() { let user; try { user = await requireAuthorizationContext(); } catch { redirect("/sign-in?next=/teacher"); } if (!hasPermission(user, "classes.read.own")) redirect(hasPermission(user, "classes.read.enrolled") ? "/student" : "/sign-in"); const data = await teacherDashboard(user.id); return <WorkspaceShell role="Teacher" userName={user.name} userEmail={user.email}><PageHeader eyebrow="Teaching area" title={`Welcome, ${user.name.split(" ")[0]}`} description="Your owned classes, active students, and upcoming teaching schedule." actions={hasPermission(user, "classes.create.own") ? <Link href="/teacher/classes/new" className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white">Create class</Link> : undefined} /><div className="grid gap-4 sm:grid-cols-3"><StatCard label="Active classes" value={String(data.activeClassCount)} detail="Owned active classes" icon={UsersRound} /><StatCard label="Active students" value={String(data.activeStudentCount)} detail="Across your classes" icon={UsersRound} /><StatCard label="Upcoming sessions" value={String(data.upcomingSessions.length)} detail="Next scheduled sessions" icon={CalendarDays} /></div><section className="mt-10"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold">Active classes</h2><Link href="/teacher/classes" className="text-sm font-semibold text-[var(--accent)]">View all</Link></div><div className="grid gap-4 lg:grid-cols-2">{data.activeClasses.map((item) => <ClassCard key={item.id} id={item.id} href={`/teacher/classes/${item.id}`} title={item.title} subject={`${item._count.enrollments} active students`} students={item._count.enrollments} next="Open class workspace" />)}</div></section></WorkspaceShell>; }

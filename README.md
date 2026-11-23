@@ -15,6 +15,7 @@ Next.js 16 App Router, strict TypeScript, PostgreSQL, Prisma ORM 7, Better Auth,
 ```sh
 npm ci
 npm run db:migrate
+npm run db:sync-permissions
 npm run db:seed
 npm run dev
 ```
@@ -22,6 +23,25 @@ npm run dev
 For local PostgreSQL, use `sslmode=disable` in both database URLs. Local authentication defaults to `EMAIL_MODE=local`: after registering, open `http://localhost:3000/api/dev/email-inbox`, copy the verification link from the JSON response, and open it in the browser. The mailbox is process-local and is cleared when the dev server restarts. Production must use `EMAIL_MODE=resend` with a verified sender.
 
 The seed is idempotent, uses only `example.test` identities, never deletes existing records, and refuses production use unless `ALLOW_DEVELOPMENT_SEED=true` is explicitly set.
+
+## RBAC deployment and first administrator
+
+After deploying migrations, synchronize the code-owned permission catalog. This is safe to repeat and does not delete custom roles or revoke existing grants:
+
+```sh
+npm run db:migrate
+npm run db:sync-permissions
+```
+
+Then deliberately select one existing, active account for initial administrative access:
+
+```sh
+npm run db:bootstrap-admin -- --email=owner@example.com
+```
+
+`BOOTSTRAP_ADMIN_EMAIL` is also supported. Public registration can create Teacher or invitation-scoped Student access, but can never bootstrap Admin. The multi-role default landing order is Admin, Teacher, then Student; an internal `next` destination takes precedence when authorized.
+
+For Vercel, `npm run db:deploy` combines forward migrations with production-safe permission synchronization. See [Deployment](docs/deployment.md) for the Vercel CLI workflow and one-time Production Admin bootstrap.
 
 ## Database rules
 

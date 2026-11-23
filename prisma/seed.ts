@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS } from "../src/server/permissions";
 
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEVELOPMENT_SEED !== "true") {
   throw new Error("Development seed is disabled in production");
@@ -20,6 +21,17 @@ const users = [
 
 async function seed() {
   await db.$transaction(async (tx) => {
+    const roleDefinitions = [
+      { id: "role_admin", key: "admin", name: "Admin", description: "Administrative area and delegated application management." },
+      { id: "role_teacher", key: "teacher", name: "Teacher", description: "Own classes, rosters, sessions, invitations, and attendance." },
+      { id: "role_student", key: "student", name: "Student", description: "Classes in which the user is actively enrolled." },
+    ] as const;
+    for (const role of roleDefinitions) await tx.role.upsert({ where: { key: role.key }, update: { name: role.name, description: role.description, isSystem: true }, create: { ...role, isSystem: true } });
+    for (const permission of PERMISSIONS) await tx.permission.upsert({ where: { key: permission.key }, update: { resource: permission.resource, action: permission.action, description: permission.description, sensitive: permission.sensitive ?? false }, create: { ...permission, sensitive: permission.sensitive ?? false } });
+    for (const [roleKey, permissionKeys] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
+      const role = await tx.role.findUniqueOrThrow({ where: { key: roleKey } });
+      for (const permissionKey of permissionKeys) await tx.rolePermission.upsert({ where: { roleId_permissionKey: { roleId: role.id, permissionKey } }, update: {}, create: { roleId: role.id, permissionKey } });
+    }
     for (const user of users) {
       await tx.user.upsert({ where: { id: user.id }, update: { name: user.name }, create: { ...user, emailVerified: true } });
     }
@@ -42,6 +54,8 @@ async function seed() {
     for (const [classId, studentId] of roster) {
       await tx.enrollment.upsert({ where: { classId_studentId: { classId, studentId } }, update: { status: "ACTIVE" }, create: { classId, studentId, status: "ACTIVE" } });
     }
+    for (const teacher of users.slice(0, 2)) await tx.userRole.upsert({ where: { userId_roleId: { userId: teacher.id, roleId: "role_teacher" } }, update: {}, create: { userId: teacher.id, roleId: "role_teacher" } });
+    for (const student of users.slice(2)) await tx.userRole.upsert({ where: { userId_roleId: { userId: student.id, roleId: "role_student" } }, update: {}, create: { userId: student.id, roleId: "role_student" } });
   });
 }
 

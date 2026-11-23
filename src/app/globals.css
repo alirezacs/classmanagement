@@ -2,6 +2,8 @@
 
 :root { color-scheme: light; --background:#f6f5f2; --surface:#fffdfa; --surface-muted:#efeee9; --foreground:#202235; --muted:#6f7180; --border:#deddd7; --accent:#3c3a78; --accent-strong:#2f2d65; --accent-soft:#e8e7f5; --success:#29755b; --warning:#a86720; --danger:#a04449; --ring:#6f6bc0; }
 html.dark { color-scheme: dark; --background:#171821; --surface:#20212c; --surface-muted:#292a36; --foreground:#f2f0e9; --muted:#a5a5b2; --border:#393a47; --accent:#a6a3ee; --accent-strong:#c1bfff; --accent-soft:#302f50; --success:#7fc8a8; --warning:#e0a864; --danger:#e08b8f; --ring:#b5b1ff; }
+.admin-theme { --accent:#a44f18; --accent-strong:#7f3b11; --accent-soft:#f8e7d9; --ring:#c8682b; }
+html.dark .admin-theme { --accent:#f2a15f; --accent-strong:#ffc18f; --accent-soft:#492d21; --ring:#f2a15f; }
 * { border-color: var(--border); }
 html { background: var(--background); scroll-behavior: smooth; }
 body { min-height: 100vh; background: var(--background); color: var(--foreground); font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; }
