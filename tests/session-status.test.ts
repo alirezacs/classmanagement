@@ -8,7 +8,7 @@ vi.mock("@/server/authorization", () => ({
   requireClassScopedPermission: vi.fn(async () => ({ id: "class-1", ownerId: "teacher-1", status: "ACTIVE" })),
 }));
 vi.mock("@/server/db", () => ({ db: {
-  attendance: { aggregate: vi.fn(async () => ({ _max: { segmentNumber: null } })) },
+  attendance: { aggregate: vi.fn(async () => ({ _max: { segmentNumber: 1 } })) },
   classSession: { update: mocks.update },
 } }));
 vi.mock("@/server/audit", () => ({ writeAudit: vi.fn() }));
@@ -16,7 +16,7 @@ vi.mock("@/server/audit", () => ({ writeAudit: vi.fn() }));
 import { updateSession } from "@/server/services/sessions";
 
 describe("session status updates", () => {
-  it("allows an owning teacher to mark a session completed", async () => {
+  it("allows a status update when the session's only valid segment has attendance", async () => {
     await updateSession("teacher-1", "class-1", "session-1", { status: "COMPLETED", cancellationReason: null });
     expect(mocks.update).toHaveBeenCalledWith({ where: { id: "session-1" }, data: { status: "COMPLETED", cancellationReason: null } });
   });
