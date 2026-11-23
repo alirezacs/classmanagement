@@ -54,7 +54,7 @@ export async function listClassRoster(userId: string, classId: string, query: un
   const total = await db.enrollment.count({ where });
   const absenceCounts = access.role !== "STUDENT" ? await db.attendance.groupBy({ by: ["enrollmentId"], where: { classId, enrollmentId: { in: rows.map((row) => row.id) }, status: "ABSENT" }, _count: { _all: true } }) : [];
   const absenceMap = new Map(absenceCounts.map((item) => [item.enrollmentId, item._count._all]));
-  return { role: access.role, items: rows.map((row) => access.role !== "STUDENT" ? ({ id: row.id, status: row.status, enrolledAt: row.enrolledAt, absenceCount: absenceMap.get(row.id) ?? 0, student: { name: row.student.name, image: row.student.image } }) : ({ student: { name: row.student.name, image: row.student.image } })), page, pageSize, total };
+  return { role: access.role, items: rows.map((row) => access.role !== "STUDENT" ? ({ id: row.id, status: row.status, enrolledAt: row.enrolledAt, absenceCount: absenceMap.get(row.id) ?? 0, student: { name: row.student.name, image: row.student.image } }) : ({ id: row.id, status: row.status, student: { name: row.student.name, image: row.student.image } })), page, pageSize, total };
 }
 
 export async function removeEnrollment(userId: string, classId: string, enrollmentId: string) {

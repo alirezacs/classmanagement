@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { hasPermission, requireAuthorizationContext } from "@/server/authorization";
 import { getClassSummary, listClassRoster } from "@/server/services/classes";
-import { getMyAttendance, listSessions } from "@/server/services/sessions";
+import { getClassAttendanceForStudent, listSessions } from "@/server/services/sessions";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { ClassWorkspaceClient, type WorkspaceData } from "@/components/class-workspace-client";
 
@@ -16,7 +16,7 @@ export async function ClassWorkspace({ classId, section = "overview", student = 
     getClassSummary(user.id, classId),
     listClassRoster(user.id, classId, { page: 1, pageSize: 100, search: "" }),
     listSessions(user.id, classId, !student),
-    student ? getMyAttendance(user.id, classId) : Promise.resolve([]),
+    student ? getClassAttendanceForStudent(user.id, classId) : Promise.resolve([]),
   ]);
   const base = admin ? `/admin/classes/${classId}` : student ? `/student/classes/${classId}` : `/teacher/classes/${classId}`;
   const active = tabs.includes(section as typeof tabs[number]) ? section : "overview";
