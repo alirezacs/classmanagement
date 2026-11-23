@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(async ({ data }: { data: unknown }) => data) }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(async ({ data }: { data: unknown }) => data), completeSession: vi.fn(async () => ({})), upsertAttendance: vi.fn(async () => ({})) }));
 vi.mock("@/server/authorization", () => ({
   AccessDeniedError: class extends Error {},
   requireClassAccess: vi.fn(),
@@ -9,7 +9,9 @@ vi.mock("@/server/authorization", () => ({
 }));
 vi.mock("@/server/db", () => ({ db: {
   attendance: { aggregate: vi.fn(async () => ({ _max: { segmentNumber: 1 } })) },
+  enrollment: { findMany: vi.fn(async () => [{ id: "enrollment-1" }]) },
   classSession: { update: mocks.update },
+  $transaction: vi.fn(async (callback: (tx: unknown) => unknown) => callback({ attendance: { upsert: mocks.upsertAttendance }, classSession: { update: mocks.completeSession } })),
 } }));
 vi.mock("@/server/audit", () => ({ writeAudit: vi.fn() }));
 
@@ -19,5 +21,11 @@ describe("session status updates", () => {
   it("allows a status update when the session's only valid segment has attendance", async () => {
     await updateSession("teacher-1", "class-1", "session-1", { status: "COMPLETED", cancellationReason: null });
     expect(mocks.update).toHaveBeenCalledWith({ where: { id: "session-1" }, data: { status: "COMPLETED", cancellationReason: null } });
+  });
+
+  it("marks a non-completed session completed when attendance is saved", async () => {
+    const { saveAttendance } = await import("@/server/services/sessions");
+    await saveAttendance("teacher-1", "class-1", "session-1", [{ enrollmentId: "enrollment-1", status: "PRESENT", moment: "SEGMENT", segmentNumber: 1 }]);
+    expect(mocks.completeSession).toHaveBeenCalledWith({ where: { id: "session-1" }, data: { status: "COMPLETED", cancellationReason: null } });
   });
 });
