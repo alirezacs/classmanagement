@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { normalizePostgresConnectionString } from "@/server/postgres-url";
 
 const serverEnvironmentSchema = z.object({
   DATABASE_URL_POOLED: z.string().url(),
@@ -13,7 +14,7 @@ export function readServerEnvironment() {
 
 export function databaseUrlForBuildOrRuntime(): string {
   const value = process.env.DATABASE_URL_POOLED;
-  if (value) return value;
+  if (value) return normalizePostgresConnectionString(value);
   if (process.env.NEXT_PHASE === "phase-production-build") {
     return "postgresql://build:build@127.0.0.1:5432/build";
   }

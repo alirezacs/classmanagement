@@ -1,13 +1,14 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { normalizePostgresConnectionString } from "../src/server/postgres-url";
 
 const emailArg = process.argv.find((value) => value.startsWith("--email="))?.slice("--email=".length) ?? process.env.BOOTSTRAP_ADMIN_EMAIL;
 if (!emailArg) throw new Error("Select an existing user with --email=user@example.com or BOOTSTRAP_ADMIN_EMAIL");
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 const email = emailArg.trim().toLowerCase();
-const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: normalizePostgresConnectionString(databaseUrl) }) });
 
 try {
   const result = await db.$transaction(async (tx) => {
@@ -19,7 +20,7 @@ try {
     await tx.userRole.upsert({ where: { userId_roleId: { userId: user.id, roleId: role.id } }, update: {}, create: { userId: user.id, roleId: role.id, assignedById: user.id } });
     await tx.auditLog.create({ data: { actorId: user.id, action: "role.bootstrap", targetType: "User", targetId: user.id, details: { role: "admin" } } });
     return user;
-  }, { isolationLevel: "Serializable" });
+  }, { isolationLevel: "Serializable", maxWait: 30_000, timeout: 60_000 });
   console.log(`Admin access assigned to ${result.email} (${result.id})`);
 } finally {
   await db.$disconnect();

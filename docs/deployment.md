@@ -23,24 +23,33 @@ Link the local checkout to the Vercel project once:
 npx vercel link
 ```
 
-Run the forward migrations and the idempotent code-owned permission synchronization against Production:
+Vercel Sensitive environment variables cannot be pulled back to a workstation. Obtain the direct Production connection URL from the database provider, enter it through a hidden prompt so it is not saved in shell history, and run the forward migrations plus the idempotent permission synchronization:
 
 ```sh
-npx vercel env run -e production -- npm run db:deploy
+read -r -s DATABASE_URL
+export DATABASE_URL
+npm run db:deploy
+unset DATABASE_URL
 ```
 
 Then assign Admin to a deliberately selected existing Production user once:
 
 ```sh
-npx vercel env run -e production -- npm run db:bootstrap-admin -- --email=alireza@gmail.com
+read -r -s DATABASE_URL
+export DATABASE_URL
+npm run db:bootstrap-admin -- --email=alireza@gmail.com
+unset DATABASE_URL
 ```
 
 The bootstrap is additive and idempotent: it preserves Teacher and Student roles. It refuses missing or deactivated users and never creates a password.
 
-For a separate Preview database, use `-e preview` instead. Run migrations before deploying code that needs new columns:
+For a separate Preview database, repeat the same process with that database's direct URL. Run migrations before deploying code that needs new columns:
 
 ```sh
-npx vercel env run -e production -- npm run db:deploy
+read -r -s DATABASE_URL
+export DATABASE_URL
+npm run db:deploy
+unset DATABASE_URL
 npx vercel deploy --prod
 ```
 
