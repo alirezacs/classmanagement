@@ -1,6 +1,8 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hashPassword } from "@better-auth/utils/password";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS } from "../src/server/permissions";
+import { normalizePostgresConnectionString } from "../src/server/postgres-url";
 
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEVELOPMENT_SEED !== "true") {
   throw new Error("Development seed is disabled in production");
@@ -8,7 +10,11 @@ if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEVELOPMENT_SEED 
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required to seed");
-const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+const initialAdminEmail = (process.env.SEED_ADMIN_EMAIL ?? "alirezam.p90000@gmail.com").trim().toLowerCase();
+const initialAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+if (!initialAdminPassword || initialAdminPassword.length < 8) throw new Error("SEED_ADMIN_PASSWORD must contain at least 8 characters");
+const initialAdminPasswordHash = await hashPassword(initialAdminPassword);
+const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: normalizePostgresConnectionString(databaseUrl) }) });
 
 const users = [
   { id: "seed_teacher_ada", name: "Ada Morgan", email: "ada.teacher@example.test" },
@@ -35,6 +41,21 @@ async function seed() {
     for (const user of users) {
       await tx.user.upsert({ where: { id: user.id }, update: { name: user.name }, create: { ...user, emailVerified: true } });
     }
+    const initialAdmin = await tx.user.upsert({
+      where: { email: initialAdminEmail },
+      update: { name: "Alireza", emailVerified: true, disabledAt: null, disabledReason: null },
+      create: { id: "seed_admin_alireza", name: "Alireza", email: initialAdminEmail, emailVerified: true },
+    });
+    await tx.account.upsert({
+      where: { providerId_accountId: { providerId: "credential", accountId: initialAdmin.id } },
+      update: { userId: initialAdmin.id, password: initialAdminPasswordHash },
+      create: { userId: initialAdmin.id, accountId: initialAdmin.id, providerId: "credential", password: initialAdminPasswordHash },
+    });
+    await tx.userRole.upsert({
+      where: { userId_roleId: { userId: initialAdmin.id, roleId: "role_admin" } },
+      update: {},
+      create: { userId: initialAdmin.id, roleId: "role_admin", assignedById: initialAdmin.id },
+    });
 
     await tx.class.upsert({
       where: { id: "seed_class_physics" },

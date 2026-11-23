@@ -72,12 +72,10 @@ export async function manuallyEnrollStudent(userId: string, classId: string, inp
     let student = await tx.user.findUnique({ where: { email }, include: { accounts: { where: { providerId: "credential" }, take: 1 } } });
     let passwordIssued = false;
     if (!student) {
-      const context = await requireAuthorizationContext();
-      if (!hasPermission(context, "users.create") || !hasPermission(context, "roles.assign")) throw new AccessDeniedError("Not found");
       student = await tx.user.create({ data: { name: value.name, email, emailVerified: true } , include: { accounts: { where: { providerId: "credential" }, take: 1 } } });
-      const studentRole = await tx.role.findUnique({ where: { key: "student" }, select: { id: true } });
-      if (studentRole) await tx.userRole.create({ data: { userId: student.id, roleId: studentRole.id, assignedById: userId } });
     }
+    const studentRole = await tx.role.findUniqueOrThrow({ where: { key: "student" }, select: { id: true } });
+    await tx.userRole.upsert({ where: { userId_roleId: { userId: student.id, roleId: studentRole.id } }, update: {}, create: { userId: student.id, roleId: studentRole.id, assignedById: userId } });
     if (!student.accounts[0]) {
       await tx.account.create({ data: { userId: student.id, accountId: student.id, providerId: "credential", password: await hashPassword(temporaryPassword) } });
       passwordIssued = true;

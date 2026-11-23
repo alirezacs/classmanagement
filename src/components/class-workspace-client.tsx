@@ -31,7 +31,7 @@ function People({ data }: { data: WorkspaceData }) {
     const result = await response.json().catch(() => ({})) as { temporaryPassword?: string | null };
     setPending(false);
     if (response.ok) {
-      setMessage(result.temporaryPassword ? `Student added. Temporary password: ${result.temporaryPassword}.` : "Student added to this class.");
+      setMessage(result.temporaryPassword ? `Student added. Temporary password: ${result.temporaryPassword}.` : "Student added. This email already had an account, so its existing password was kept.");
       setName(""); setEmail(""); setPassword(""); setOpen(false); router.refresh();
     } else setMessage("Student could not be added.");
   }
